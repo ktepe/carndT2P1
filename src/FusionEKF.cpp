@@ -38,6 +38,37 @@ FusionEKF::FusionEKF() {
     * Set the process and measurement noises
   */
 
+	ekf_.P_ = MatrixXd(4, 4);
+	ekf_.P_ << 1, 0, 0, 0,
+			  0, 1, 0, 0,
+			  0, 0, 1000, 0,
+			  0, 0, 0, 1000;
+
+
+	//measurement matrix
+	kf_.H_ = MatrixXd(2, 4);
+	kf_.H_ << 1, 0, 0, 0,
+			  0, 1, 0, 0;
+
+	//the initial transition matrix F_
+	kf_.F_ = MatrixXd(4, 4);
+	kf_.F_ << 1, 0, 1, 0,
+			  0, 1, 0, 1,
+			  0, 0, 1, 0,
+			  0, 0, 0, 1;
+/*
+	//set the acceleration noise components
+	noise_ax = 9;
+	noise_ay = 9;
+*/
+
+
+
+
+
+
+
+
 
 }
 
