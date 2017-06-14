@@ -1,3 +1,12 @@
+#include "Dense"
+#include <iostream>
+#include "tracking.h"
+
+using namespace std;
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
+using std::vector;
+
 Tracking::Tracking() {
 	is_initialized_ = false;
 	previous_timestamp_ = 0;
@@ -82,4 +91,5 @@ void Tracking::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 	std::cout << "P_= " << kf_.P_ << std::endl;
 
 }
+
 
