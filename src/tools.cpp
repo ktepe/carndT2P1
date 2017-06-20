@@ -1,5 +1,6 @@
 #include <iostream>
 #include "tools.h"
+#include "ket.h"
 
 using Eigen::VectorXd;
 using Eigen::MatrixXd;

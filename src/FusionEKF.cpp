@@ -3,7 +3,7 @@
 #include "tools.h"
 #include "Eigen/Dense"
 #include <iostream>
-
+#include "ket.h"
 #define ket_ekf 1
 
 using namespace std;
@@ -39,14 +39,22 @@ FusionEKF::FusionEKF() {
     * Finish initializing the FusionEKF.
     * Set the process and measurement noises
   */
+  ekf_.P_=MatrixXd(4,4);
+ 	ekf_.P_ << 1, 0, 0, 0,
+						 0, 1, 0, 0,
+						 0, 0, 1000, 0,
+						 0, 0, 0, 1000;
+						 
+	H_laser_ << 1, 0, 0, 0,
+              0, 1, 0, 0;
 
-
+	// no H_radar we use h(x)
 }
-
 /**
 * Destructor.
 */
 FusionEKF::~FusionEKF() {}
+
 
 void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
@@ -65,59 +73,44 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     cout << "EKF: " << endl;
     ekf_.x_ = VectorXd(4);
     ekf_.x_ << 1, 1, 1, 1;
+    float px=0;
+    float py=0;
 
     if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
-#if ket_ekf
-     cout << "Radar initialization: " << endl;
-
-     /*	radar data: sensor_type, rho_measured, phi_measured, rhodot_measured, timestamp, x_groundtruth, y_groundtruth, vx_groundtruth, vy_groundtruth, yaw_groundtruth, yawrate_groundtruth.*/
+   		cout << "Radar initialization: " << endl;
     
       float rho=measurement_pack.raw_measurements_[0];
       float bearing=measurement_pack.raw_measurements_[1];
-      float rho_dot=measurement_pack.raw_measurements_[2];
-      float px=rho*cos(bearing);
-      float py=rho*sin(bearing); 
-      float vx=rho_dot*cos(bearing);
-	    float vy=rho_dot*cos(bearing);
-	    
-      ekf_.x_ << px, py, vx, vy;
-      cout<< "in radar" << ekf_.x_ << endl;
-#endif     
+      
+      px=rho*cos(bearing);
+      py=rho*sin(bearing); 
     
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
       /**
       Initialize state.
       */
-#if ket_ekf
      	cout<< "LASER initialization" << endl;
-   		ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;		  
-   		cout<< "in laser" << endl << ekf_.x_ << endl;
-
-
-#endif
-      
+   	
+   		px=measurement_pack.raw_measurements_[0];
+   		py=measurement_pack.raw_measurements_[1];
+   		      
     }
-#if ket_ekf
-	previous_timestamp_ = measurement_pack.timestamp_;
+    // if px and py are too small, problems with divide with zero etc.
+    if (fabs(px) < 0.0001){
+    	px=0.1;
+    }
+    
+    if (fabs(py)< 0.0001){
+    	py=0.1;
+    }
 	
-
-		ekf_.P_=MatrixXd(4,4);
-		ekf_.P_ << 1, 0, 0, 0,
-							 0, 1, 0, 0,
-							 0, 0, 1000, 0,
-							 0, 0, 0, 1000;
-
-	cout<< "initialziation done:" << endl << ekf_.x_ << endl;
-	cout<< "initialziation P_:" << endl << ekf_.P_ << endl;
-	
-
+		ekf_.x_ << px, py, 0, 0 ;
+		previous_timestamp_ = measurement_pack.timestamp_;
     // done initializing, no need to predict or update
-#endif
-
     is_initialized_ = true;
     return;
   }
@@ -159,17 +152,15 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 			   dt_3/2*noise_ax, 0, dt_2*noise_ax, 0,
 			   0, dt_3/2*noise_ay, 0, dt_2*noise_ay;
    
-   
-  cout<< "before Predict in EKF" << endl;
-  cout<< "before Predict in EKF" << endl;
-  
-
+#if ket_debug 
+	cout<< "before Predict in EKF :"<< ekf_.x_(0) << " " << ekf_.x_(1) << " "<<ekf_.x_(2) << " "<< ekf_.x_(3)<< endl;
+#endif
 
   ekf_.Predict();
-  
-  
 
- cout<< "after Predict in EKF" << endl << ekf_.x_ << endl;
+#if ket_debug  
+ cout<< "after Predict in EKF :"<< ekf_.x_(0) << " " << ekf_.x_(1) << " "<<ekf_.x_(2) << " "<< ekf_.x_(3)<< endl;
+#endif
 
   /*****************************************************************************
    *  Update
@@ -181,19 +172,29 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * Update the state and covariance matrices.
    */
 
-  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+ if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
+#if ket_debug
+		cout << "Radar update" << endl;
+#endif
+		ekf_.H_=tools.CalculateJacobian(ekf_.x_);
+		ekf_.R_=R_radar_;
+		ekf_.UpdateEKF(measurement_pack.raw_measurements_);
+		
+		
   } else {
     // Laser updates
-    
+#if ket_debug
+    cout << "Laser update" << endl;
+#endif
    	ekf_.H_=H_laser_;
    	ekf_.R_=R_laser_;
    	ekf_.Update(measurement_pack.raw_measurements_);
    	
   }
 
-  // print the output
-  cout << "x_ = " << ekf_.x_ << endl;
+// print the output
+  cout << "x_ = " << ekf_.x_(0) << " " << ekf_.x_(1) << " "<<ekf_.x_(2) << " "<< ekf_.x_(3)<< endl;
   cout << "P_ = " << ekf_.P_ << endl;
 }
 
