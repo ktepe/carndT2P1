@@ -4,7 +4,9 @@
 #include "Eigen/Dense"
 #include <iostream>
 #include "ket.h"
-#define ket_ekf 1
+
+#define only_lidar 0
+#define only_radar 0
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -80,6 +82,10 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
+#if only_lidar
+			return;
+
+#endif 
    		cout << "Radar initialization: " << endl;
     
       float rho=measurement_pack.raw_measurements_[0];
@@ -87,12 +93,16 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       
       px=rho*cos(bearing);
       py=rho*sin(bearing); 
-    
+
+
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
       /**
       Initialize state.
       */
+#if only_radar
+			return;
+#endif
      	cout<< "LASER initialization" << endl;
    	
    		px=measurement_pack.raw_measurements_[0];
@@ -174,9 +184,15 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
+
+#if only_lidar
+	return;
+#endif
 #if ket_debug
+		
 		cout << "Radar update" << endl;
 #endif
+
 		ekf_.H_=tools.CalculateJacobian(ekf_.x_);
 		ekf_.R_=R_radar_;
 		ekf_.UpdateEKF(measurement_pack.raw_measurements_);
@@ -184,6 +200,9 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 		
   } else {
     // Laser updates
+#if only_radar
+		return;
+#endif
 #if ket_debug
     cout << "Laser update" << endl;
 #endif
